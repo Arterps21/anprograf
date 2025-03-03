@@ -26,6 +26,7 @@
     src: grafana.ini.j2
     dest: /etc/grafana/grafana.ini
   notify: Restart Grafana
+  
 
 - name: Убедиться, что Grafana запущена и включена в автозапуск
   systemd:
@@ -34,5 +35,5 @@
     enabled: yes
 
 - name: Создать admin-пароль
-  command: grafana-cli admin reset-admin-password Grafana_2024!Secure
+  command: grafana-cli admin reset-admin-password Grafana_2025!MiemSecure
   become: yes
