@@ -1,0 +1,51 @@
+- name: Установить зависимости
+  apt:
+    name:
+      - wget
+      - tar
+    state: present
+
+- name: Скачать Prometheus
+  get_url:
+    url: "https://github.com/prometheus/prometheus/releases/download/v2.44.0/prometheus-2.44.0.linux-amd64.tar.gz"
+    dest: "/tmp/prometheus.tar.gz"
+
+- name: Распаковать Prometheus
+  ansible.builtin.unarchive:
+    src: "/tmp/prometheus.tar.gz"
+    dest: "/opt/"
+    remote_src: yes
+
+- name: Переместить бинарники
+  command: mv -f /opt/prometheus-{{ prometheus_version }}.linux-amd64 /opt/prometheus
+  args:
+    creates: /opt/prometheus
+
+- name: Копировать конфиг
+  template:
+    src: prometheus.yml.j2
+    dest: /opt/prometheus.yml
+  notify: Restart Prometheus
+
+- name: Создать systemd юнит
+  copy:
+    dest: /etc/systemd/system/prometheus.service
+    content: |
+      [Unit]
+      Description=Prometheus Monitoring
+      After=network.target
+
+      [Service]
+      ExecStart=/opt/prometheus/prometheus --config.file=/opt/prometheus/prometheus.yml
+      Restart=always
+      User=root
+
+      [Install]
+      WantedBy=multi-user.target
+  notify: Restart Prometheus
+
+- name: Запустить и включить Prometheus
+  systemd:
+    name: prometheus
+    state: started
+    enabled: yes

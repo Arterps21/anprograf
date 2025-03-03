@@ -1,0 +1,42 @@
+- name: Скачать Node Exporter
+  get_url:
+    url: "https://github.com/prometheus/node_exporter/releases/download/v1.6.1/node_exporter-1.6.1.linux-amd64.tar.gz"
+    dest: "/tmp/node_exporter.tar.gz"
+
+- name: Распаковать Node Exporter
+  ansible.builtin.unarchive:
+    src: "/tmp/node_exporter.tar.gz"
+    dest: "/opt/"
+    remote_src: yes
+
+- name: Переместить бинарник
+  command: mv /opt/node_exporter-{{ node_exporter_version }}.linux-amd64 /opt/node_exporter
+  args:
+    creates: /opt/node_exporter
+- name: Restart Node Exporter
+  systemd:
+    name: node_exporter
+    state: restarted
+    enabled: yes
+- name: Создать systemd юнит
+  copy:
+    dest: /etc/systemd/system/node_exporter.service
+    content: |
+      [Unit]
+      Description=Node Exporter
+      After=network.target
+
+      [Service]
+      ExecStart=/opt/node_exporter/node_exporter
+      Restart=always
+      User=root
+
+      [Install]
+      WantedBy=multi-user.target
+  notify: Restart Node Exporter
+
+- name: Запустить и включить Node Exporter
+  systemd:
+    name: node_exporter
+    state: started
+    enabled: yes
