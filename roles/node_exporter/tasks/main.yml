@@ -1,0 +1,13 @@
+- name: Update APT package cache
+  apt:
+    update_cache: yes
+
+- name: Install Prometheus Node Exporter
+  ansible.builtin.apt:
+    name: prometheus-node-exporter
+    state: present
+- name: Start and Enable Node Exporter service
+  systemd:
+    name: prometheus-node-exporter
+    state: started
+    enabled: true

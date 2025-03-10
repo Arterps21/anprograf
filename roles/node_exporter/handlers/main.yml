@@ -1,0 +1,5 @@
+---
+- name: Reload Prometheus Node Exporter
+  ansible.builtin.service:
+    name: prometheus-node-exporter
+    state: reloaded

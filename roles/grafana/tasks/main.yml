@@ -1,0 +1,108 @@
+- name: Установка Docker SDK для Python
+  ansible.builtin.pip:
+    name: docker
+    state: present
+    executable: /usr/bin/pip3
+    extra_args: --break-system-packages
+
+- name: Установка Docker
+  ansible.builtin.apt:
+    name: docker.io
+    state: present
+    update_cache: yes
+
+- name: Запуск и включение службы Docker
+  ansible.builtin.service:
+    name: docker
+    state: started
+    enabled: yes
+
+# Скачивание и запуск Grafana в Docker
+- name: Скачивание Docker-образа Grafana
+  community.docker.docker_image:
+    name: grafana/grafana
+    source: pull
+    state: present
+- name: Создание директории для конфигурации Grafana
+  ansible.builtin.file:
+    path: /etc/grafana
+    state: directory
+    mode: '0755'
+
+- name: Копирование конфигурации Grafana из шаблона
+  ansible.builtin.template:
+    src: grafana.ini.j2
+    dest: /etc/grafana/grafana.ini
+    mode: '0644'
+
+- name: Создание директории для provisioning дашбордов
+  ansible.builtin.file:
+    path: /etc/grafana/provisioning/dashboards
+    state: directory
+    mode: '0755'
+
+- name: Создание директории для provisioning источников данных
+  ansible.builtin.file:
+    path: /etc/grafana/provisioning/datasources
+    state: directory
+    mode: '0755'
+- name: Настройка источника данных Prometheus
+  ansible.builtin.copy:
+    content: |
+      apiVersion: 1
+      datasources:
+        - name: Prometheus
+          type: prometheus
+          url: http://{{ inventory_hostname }}:9090
+          access: proxy
+          isDefault: true
+    dest: /etc/grafana/provisioning/datasources/prometheus.yml
+    mode: '0644'
+
+- name: Настройка provisioning дашбордов
+  ansible.builtin.copy:
+    content: |
+      apiVersion: 1
+      providers:
+        - name: 'Default'
+          type: file
+          disableDeletion: false
+          updateIntervalSeconds: 10
+          options:
+            path: /var/lib/grafana/dashboards
+    dest: /etc/grafana/provisioning/dashboards/default.yml
+    mode: '0644'
+
+- name: Создание директории для дашбордов
+  ansible.builtin.file:
+    path: /var/lib/grafana/dashboards
+    state: directory
+    mode: '0755'
+
+- name: Загрузка примера дашборда
+  ansible.builtin.get_url:
+    url: https://grafana.com/api/dashboards/1860/revisions/27/download
+    dest: /var/lib/grafana/dashboards/node_exporter.json
+    mode: '0644'
+
+- name: Запуск контейнера Grafana
+  community.docker.docker_container:
+    name: grafana
+    image: grafana/grafana
+    state: started
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana-storage:/var/lib/grafana
+      - /etc/grafana/grafana.ini:/etc/grafana/grafana.ini
+      - /etc/grafana/provisioning:/etc/grafana/provisioning
+      - /var/lib/grafana/dashboards:/var/lib/grafana/dashboards
+    env:
+      GF_SECURITY_ADMIN_PASSWORD: "GrafanaGrafana"  # Пароль администратора
+
+- name: Ожидание запуска Grafana
+  ansible.builtin.wait_for:
+    host: "{{ inventory_hostname }}"
+    port: 3000
+    delay: 10
+    timeout: 60

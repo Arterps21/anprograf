@@ -1,0 +1,11 @@
+- name: installing of monitoring
+  hosts: monitoring
+  become: yes
+  roles:
+    - prometheus
+    - grafana
+- name: installing of node exporter
+  hosts: exporters
+  become: yes
+  roles:
+    - node_exporter

@@ -1,0 +1,16 @@
+[server]
+http_port = 3000
+domain = {{ grafana_domain | default(inventory_hostname) }}
+root_url = http://%(domain)s:%(http_port)s/
+
+[datasources]
+  [[datasource]]
+  name = Prometheus
+  type = prometheus
+  url = http://{{ prometheus_host | default(inventory_hostname) }}:9090
+  access = proxy
+  is_default = true
+
+[dashboards]
+  provisioning = true
+  dashboard_folder = /etc/grafana/provisioning/dashboards
