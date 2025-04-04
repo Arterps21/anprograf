@@ -10,6 +10,64 @@
     state: started
     enabled: yes
 
+- name: Ensure Alertmanager is installed
+  apt:
+    name: prometheus-alertmanager
+    state: present
+    update_cache: yes
+
+- name: Ensure Alertmanager service is enabled and running
+  service:
+    name: prometheus-alertmanager
+    state: started
+    enabled: yes
+
+- name: Deploy Alertmanager configuration
+  copy:
+    content: |
+      global:
+        resolve_timeout: 5m
+
+      route:
+        receiver: "telegram"
+        group_by: ["alertname", "instance"]
+        repeat_interval: 30m
+
+      receivers:
+        - name: "telegram"
+          telegram_configs:
+            - bot_token: "7670452372:AAEXYVZGc5pI08ASfb1kORG5ybMTKpYR7Sk"
+              chat_id: -1002235826366
+              message: >-
+                {% raw %}{{ range .Alerts }} *ALERT:* {{ .Annotations.summary }} - {{ .Labels.instance }}{{ "\n" }}{{ .Annotations.description }}{{ "\n" }}{{ end }}{% endraw %}
+
+    dest: /etc/prometheus/alertmanager.yml
+    owner: prometheus
+    group: prometheus
+    mode: '0644'
+  notify: Restart Alertmanager
+
+- name: Deploy alerting rules
+  copy:
+    content: |
+      groups:
+        - name: instance_down
+          rules:
+            - alert: InstanceDown
+              expr: up{instance="10.13.10.140:9100"} == 0
+              for: 1m
+              labels:
+                severity: critical
+              annotations:
+                summary: "Сервер 10.1.120.30 упал!"
+                description: "Prometheus не получает данные с 10.1.120.30 в течение 1 минуты."
+
+    dest: /etc/prometheus/alert_rules.yml
+    owner: prometheus
+    group: prometheus
+    mode: '0644'
+  notify: Restart Prometheus
+
 - name: Deploy Prometheus configuration
   copy:
     content: |
@@ -17,6 +75,13 @@
         scrape_interval: 15s
         evaluation_interval: 15s
 
+      alerting:
+        alertmanagers:
+          - static_configs:
+            - targets: ["localhost:9093"]
+      rule_files:
+        - "/etc/prometheus/alert_rules.yml"
+      
       scrape_configs:
         - job_name: 'prometheus'
           static_configs:

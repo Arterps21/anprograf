@@ -5,3 +5,8 @@
     state: restarted
     enabled: yes
 
+- name: Restart Alertmanager
+  service:
+    name: prometheus-alertmanager
+    state: restarted
+    enabled: yes
